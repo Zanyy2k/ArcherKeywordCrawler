@@ -14,13 +14,15 @@ var keywords = [
 
 var numKeyWords = keywords.length;
 var keywordIndex = 0;
-var pageIndex = 66; // 正式爬取时从1开始，测试阶段使用较大数字
+var pageIndex = 1; // 正式爬取时从1开始，测试阶段使用较大数字
 
-var urlPrefix = "http://www.xiaohongshu.com/web_api/sns/v2/search/note?keyword=";
+var keywordUrlPrefix = "http://www.xiaohongshu.com/web_api/sns/v2/search/note?keyword=";
+var itemUrlPrefix = "http://www.xiaohongshu.com/discovery/item/";
+
 var urlWithKeyword = getUrlWithKeywordIndex(keywordIndex, pageIndex);
 
 function getUrlWithKeywordIndex(keywordIndex, pageIndex) {
-  return urlPrefix + encodeURIComponent(keywords[keywordIndex]) + "&page=" + pageIndex;
+  return keywordUrlPrefix + encodeURIComponent(keywords[keywordIndex]) + "&page=" + pageIndex;
 }
 
 var configs = {
@@ -81,6 +83,13 @@ var configs = {
           selector: "$.cover.url",
           type: 'image',
           selectorType: SelectorType.JsonPath
+        },
+        {
+          name: "tags",
+          alias: '标签',
+          selector: "$.tags",
+          selectorType: SelectorType.JsonPath,
+          repeated: true
         },
         {
           name: "user",
@@ -157,6 +166,12 @@ var configs = {
     return data;
   },
   afterExtractField: function (fieldName, data, page, site) {
+    if (fieldName === 'data.tags') {
+      data = data.map(function (datum) {
+        return datum.replace(/huati\.(.*)/, '$1');
+      });
+      console.log(data);
+    }
     return data;
   }
 };
