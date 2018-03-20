@@ -29,6 +29,7 @@ function getUrlWithKeywordIndex(keywordIndex, pageIndex) {
 var configs = {
   userAgent: UserAgent.Mobile,
   domains: ["www.xiaohongshu.com"],
+  timeout: 10 * 1000,
   scanUrls: [urlWithKeyword],
   contentUrlRegexes: [
     /http:\/\/www\.xiaohongshu\.com\/web_api\/sns\/v2\/search\/note\?keyword=(.*)+&page=(\d){1,2}/,
@@ -89,18 +90,19 @@ var configs = {
           type: 'image',
           selectorType: SelectorType.JsonPath
         },
-        /*{
+        {
           name: "tags",
           alias: '标签id',
           selector: "$.tags",
           selectorType: SelectorType.JsonPath,
           repeated: true,
-          /!*children: [
+          type: 'json'
+          /*children: [
             {
-              name: 'id',
+              name: 'tagid',
               alias: '标签id',
               selectorType: SelectorType.JsonPath,
-              selector: '$.id'
+              selector: '$.tagid'
             },
             /!*{
               name: 'type',
@@ -108,9 +110,9 @@ var configs = {
               selectorType: SelectorType.JsonPath,
               selector: '$.type'
             }*!/
-          ]*!/
-        },*/
-        {
+          ]*/
+        },
+        /*{
           name: "tag-topic",
           alias: '话题标签',
           selectorType: SelectorType.XPath,
@@ -127,18 +129,27 @@ var configs = {
           sourceType: SourceType.AttachedUrl,
           attachedUrl: itemUrlPrefix + "{id}",
           selector: "//a[contains(@class,'goods') and contains(@class ,'hash-tag')]/text()"
-        },
-        
-        {
+        },*/
+        /*{
           name: 'goods-id',
           alias: '商品id',
           sourceType: SourceType.AttachedUrl,
           attachedUrl: itemUrlPrefix + "{id}",
           selectorType: SelectorType.XPath,
           repeated: true,
-          selector: "//a[contains(@class,'goods') and contains(@class ,'hash-tag')]/attribute::owl"
-        },
-        
+          selector: "//a[contains(@class,'goods') and contains(@class ,'hash-tag')]/attribute::owl",
+          children: [
+            {
+              name: 'goods-name',
+              alias: '商品名称',
+              selectorType: SelectorType.XPath,
+              sourceType: SourceType.AttachedUrl,
+              attachedUrl: goodsUrlPrefix + "@",
+              repeated: true,
+              selector: "//h1[contains(@owl, 'detail_name')]/text()"
+            }
+          ]
+        },*/
         {
           name: "user",
           alias: '用户',
@@ -213,9 +224,21 @@ var configs = {
     // console.log(data);
     return data;
   },
-  afterExtractField: function (fieldName, data, page, site) {
+  afterExtractField: function (fieldName, data, page, site, index) {
+    if (fieldName === 'data.tags') {
+      console.log(data);
+      
+      return data.map(function(datum) {
+        // console.log(datum);
+        return {
+          type: 'test-type',
+          id: 'test-id'
+        }
+      })
+      // return data[index];
+    }
     if (fieldName === 'data.goods-id') {
-      data = data.map(function(datum) {
+      data = data.map(function (datum) {
         var goodsId = datum.replace(/.*\/(.*)/, '$1');
         site.addUrl(goodsUrlPrefix + goodsId);
         return goodsId;
