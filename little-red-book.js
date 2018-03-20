@@ -18,6 +18,7 @@ var pageIndex = 1; // 正式爬取时从1开始，测试阶段使用较大数字
 
 var keywordUrlPrefix = "http://www.xiaohongshu.com/web_api/sns/v2/search/note?keyword=";
 var itemUrlPrefix = "http://www.xiaohongshu.com/discovery/item/";
+var goodsUrlPrefix = "https://pages.xiaohongshu.com/goods/";
 
 var urlWithKeyword = getUrlWithKeywordIndex(keywordIndex, pageIndex);
 
@@ -29,7 +30,11 @@ var configs = {
   userAgent: UserAgent.Mobile,
   domains: ["www.xiaohongshu.com"],
   scanUrls: [urlWithKeyword],
-  contentUrlRegexes: [/http:\/\/www\.xiaohongshu\.com\/web_api\/sns\/v2\/search\/note\?keyword=(.*)+&page=(\d){1,2}/],
+  contentUrlRegexes: [
+    /http:\/\/www\.xiaohongshu\.com\/web_api\/sns\/v2\/search\/note\?keyword=(.*)+&page=(\d){1,2}/,
+    /http:\/\/www\.xiaohongshu\.com\/discovery\/item\/.*/,
+    /http:\/\/pages\.xiaohongshu\.com\/goods\/.*/
+  ],
   helperUrlRegexes: [],
   fields: [
     {
@@ -84,13 +89,56 @@ var configs = {
           type: 'image',
           selectorType: SelectorType.JsonPath
         },
-        {
+        /*{
           name: "tags",
-          alias: '标签',
+          alias: '标签id',
           selector: "$.tags",
           selectorType: SelectorType.JsonPath,
-          repeated: true
+          repeated: true,
+          /!*children: [
+            {
+              name: 'id',
+              alias: '标签id',
+              selectorType: SelectorType.JsonPath,
+              selector: '$.id'
+            },
+            /!*{
+              name: 'type',
+              alias: '标签类型',
+              selectorType: SelectorType.JsonPath,
+              selector: '$.type'
+            }*!/
+          ]*!/
+        },*/
+        {
+          name: "tag-topic",
+          alias: '话题标签',
+          selectorType: SelectorType.XPath,
+          repeated: true,
+          sourceType: SourceType.AttachedUrl,
+          attachedUrl: "http://www.xiaohongshu.com/discovery/item/{id}",
+          selector: "//a[contains(@class,'topic') and contains(@class ,'hash-tag')]/text()"
         },
+        {
+          name: "tag-goods",
+          alias: '商品标签',
+          selectorType: SelectorType.XPath,
+          repeated: true,
+          sourceType: SourceType.AttachedUrl,
+          attachedUrl: itemUrlPrefix + "{id}",
+          selector: "//a[contains(@class,'goods') and contains(@class ,'hash-tag')]/text()"
+        },
+        
+        {
+          name: 'goods-id',
+          alias: '商品id',
+          sourceType: SourceType.AttachedUrl,
+          attachedUrl: itemUrlPrefix + "{id}",
+          selectorType: SelectorType.XPath,
+          repeated: true,
+          selector: "//a[contains(@class,'goods') and contains(@class ,'hash-tag')]/attribute::owl"
+        },
+        
         {
           name: "user",
           alias: '用户',
@@ -118,7 +166,7 @@ var configs = {
             },
             {
               name: "verified",
-              alias: '官方认证用户',
+              alias: '认证用户',
               selector: "$.official_verified",
               type: 'bool',
               selectorType: SelectorType.JsonPath
@@ -166,11 +214,12 @@ var configs = {
     return data;
   },
   afterExtractField: function (fieldName, data, page, site) {
-    if (fieldName === 'data.tags') {
-      data = data.map(function (datum) {
-        return datum.replace(/huati\.(.*)/, '$1');
+    if (fieldName === 'data.goods-id') {
+      data = data.map(function(datum) {
+        var goodsId = datum.replace(/.*\/(.*)/, '$1');
+        site.addUrl(goodsUrlPrefix + goodsId);
+        return goodsId;
       });
-      console.log(data);
     }
     return data;
   }
