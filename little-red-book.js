@@ -14,7 +14,7 @@ var keywords = [
 
 var numKeyWords = keywords.length;
 var keywordIndex = 0;
-var pageIndex = 65; // 正式爬取时从1开始，测试阶段使用较大数字
+var pageIndex = 66; // 正式爬取时从1开始，测试阶段使用较大数字
 
 var urlPrefix = "http://www.xiaohongshu.com/web_api/sns/v2/search/note?keyword=";
 var urlWithKeyword = getUrlWithKeywordIndex(keywordIndex, pageIndex);
@@ -23,18 +23,12 @@ function getUrlWithKeywordIndex(keywordIndex, pageIndex) {
   return urlPrefix + encodeURIComponent(keywords[keywordIndex]) + "&page=" + pageIndex;
 }
 
-function getEncodedKeyword() {
-  return encodeURIComponent(keywords[keywordIndex]);
-}
-
 var configs = {
   userAgent: UserAgent.Mobile,
   domains: ["www.xiaohongshu.com"],
-  // scanUrls: ["http://www.xiaohongshu.com/web_api/sns/v2/search/note?keyword=%E9%80%9A%E5%8B%A4%E5%A6%86&page=66"],
   scanUrls: [urlWithKeyword],
   contentUrlRegexes: [/http:\/\/www\.xiaohongshu\.com\/web_api\/sns\/v2\/search\/note\?keyword=(.*)+&page=(\d){1,2}/],
   helperUrlRegexes: [],
-  // entriesFirst: true,
   fields: [
     {
       name: "data",
@@ -71,9 +65,23 @@ var configs = {
           name: "likes",
           alias: '点赞数',
           selector: "$.likes",
+          type: 'int',
           selectorType: SelectorType.JsonPath
         },
-        
+        {
+          name: "collects",
+          alias: '商品数',
+          selector: "$.collects",
+          type: 'int',
+          selectorType: SelectorType.JsonPath
+        },
+        {
+          name: "cover",
+          alias: '封面图',
+          selector: "$.cover.url",
+          type: 'image',
+          selectorType: SelectorType.JsonPath
+        },
         {
           name: "user",
           alias: '用户',
@@ -91,20 +99,21 @@ var configs = {
               name: "nickname",
               alias: '用户昵称',
               selector: "$.nickname",
-              selectorType: SelectorType.JsonPath,
+              selectorType: SelectorType.JsonPath
             },
             {
               name: "avatar",
               alias: '用户头像',
               selector: "$.image",
-              selectorType: SelectorType.JsonPath,
+              selectorType: SelectorType.JsonPath
             },
             {
               name: "verified",
               alias: '官方认证用户',
               selector: "$.official_verified",
-              selectorType: SelectorType.JsonPath,
-            },
+              type: 'bool',
+              selectorType: SelectorType.JsonPath
+            }
           ]
         }
       ]
@@ -118,23 +127,27 @@ var configs = {
   },
   onProcessContentPage: function (page, content, site) {
     var data = JSON.parse(content);
-    if (data.data && data.data.length < 1) {
+    if (data.data.length < 1) {
       // 已完成该页面爬取
-      console.log('done with current keyword');
+      var currentKeyword = page.url.replace(/.*keyword=(.*)&page=.*/, '$1');
+      console.log('done with keyword: ' + decodeURIComponent(currentKeyword));
       if (++keywordIndex < numKeyWords) {
         // 爬取下一个关键词
         var newUrl = getUrlWithKeywordIndex(keywordIndex, pageIndex);
         site.addUrl(newUrl);
       } else {
         // 已完成所有关键词的爬取
+        console.log('done with all keywords');
         return false;
       }
-    } else if (data.data) {
+    } else {
       // 继续爬取当前关键词的下一页结果
       console.log('continue to crawl next page');
       var url = page.url;
       var pageNumber = url.replace(/.*&page=(\d)/, '$1');
-      site.addUrl("http://www.xiaohongshu.com/web_api/sns/v2/search/note?keyword=" + getEncodedKeyword() + "&page=" + ++pageNumber);
+      pageNumber++;
+      var nextUrl = url.replace(/(.*)&page=.*/, '$1&page=' + pageNumber);
+      site.addUrl(nextUrl);
     }
     
     return false;
@@ -145,7 +158,7 @@ var configs = {
   },
   afterExtractField: function (fieldName, data, page, site) {
     return data;
-  },
+  }
 };
 
 var crawler = new Crawler(configs);
