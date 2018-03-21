@@ -77,42 +77,20 @@ var configs = {
           selectorType: SelectorType.JsonPath
         },
         {
-          name: "collects",
-          alias: '商品数',
-          selector: "$.collects",
-          type: 'int',
-          selectorType: SelectorType.JsonPath
-        },
-        {
           name: "cover",
           alias: '封面图',
           selector: "$.cover.url",
           type: 'image',
           selectorType: SelectorType.JsonPath
         },
-        {
+        /*{
           name: "tags",
           alias: '标签id',
           selector: "$.tags",
           selectorType: SelectorType.JsonPath,
           repeated: true,
-          type: 'json'
-          /*children: [
-            {
-              name: 'tagid',
-              alias: '标签id',
-              selectorType: SelectorType.JsonPath,
-              selector: '$.tagid'
-            },
-            /!*{
-              name: 'type',
-              alias: '标签类型',
-              selectorType: SelectorType.JsonPath,
-              selector: '$.type'
-            }*!/
-          ]*/
-        },
-        /*{
+        },*/
+        {
           name: "tag-topic",
           alias: '话题标签',
           selectorType: SelectorType.XPath,
@@ -129,8 +107,8 @@ var configs = {
           sourceType: SourceType.AttachedUrl,
           attachedUrl: itemUrlPrefix + "{id}",
           selector: "//a[contains(@class,'goods') and contains(@class ,'hash-tag')]/text()"
-        },*/
-        /*{
+        },
+        {
           name: 'goods-id',
           alias: '商品id',
           sourceType: SourceType.AttachedUrl,
@@ -138,18 +116,16 @@ var configs = {
           selectorType: SelectorType.XPath,
           repeated: true,
           selector: "//a[contains(@class,'goods') and contains(@class ,'hash-tag')]/attribute::owl",
-          children: [
-            {
-              name: 'goods-name',
-              alias: '商品名称',
-              selectorType: SelectorType.XPath,
-              sourceType: SourceType.AttachedUrl,
-              attachedUrl: goodsUrlPrefix + "@",
-              repeated: true,
-              selector: "//h1[contains(@owl, 'detail_name')]/text()"
-            }
-          ]
-        },*/
+        },
+        {
+          name: 'goods-name',
+          alias: '商品名称',
+          selectorType: SelectorType.XPath,
+          sourceType: SourceType.AttachedUrl,
+          attachedUrl: goodsUrlPrefix,
+          repeated: true,
+          selector: "//h1[contains(@owl, 'detail_name')]/text()"
+        },
         {
           name: "user",
           alias: '用户',
@@ -225,18 +201,11 @@ var configs = {
     return data;
   },
   afterExtractField: function (fieldName, data, page, site, index) {
-    if (fieldName === 'data.tags') {
-      console.log(data);
-      
+    /*if (fieldName === 'data.tags') {
       return data.map(function(datum) {
-        // console.log(datum);
-        return {
-          type: 'test-type',
-          id: 'test-id'
-        }
+        return datum.replace(/.*\.(.*)/, '$1');
       })
-      // return data[index];
-    }
+    }*/
     if (fieldName === 'data.goods-id') {
       data = data.map(function (datum) {
         var goodsId = datum.replace(/.*\/(.*)/, '$1');
