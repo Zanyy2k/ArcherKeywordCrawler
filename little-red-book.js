@@ -14,6 +14,8 @@ var keywords = [
 
 var numKeyWords = keywords.length;
 var keywordIndex = 0;
+
+// 神箭手不建议在爬虫代码中使用全局变量。因为每个爬虫节点都会单独使用定义的全局变量，容易出现冲突
 var pageIndex = 1; // 正式爬取时从1开始，测试阶段使用较大数字
 
 var keywordUrlPrefix = "http://www.xiaohongshu.com/web_api/sns/v2/search/note?keyword=";
@@ -22,7 +24,7 @@ var goodsUrlPrefix = "https://pages.xiaohongshu.com/goods/";
 
 var searchRegex = /http:\/\/www\.xiaohongshu\.com\/web_api\/sns\/v2\/search\/note\?keyword=(.*)+&page=(\d){1,2}/;
 var itemRegex = /http:\/\/www\.xiaohongshu\.com\/discovery\/item\/.*/;
-var goodsRegex = /http:\/\/pages\.xiaohongshu\.com\/goods\/.*/;
+var goodsRegex = /http(s)?:\/\/pages\.xiaohongshu\.com\/goods\/.*/;
 
 
 var urlWithKeyword = getUrlWithKeywordIndex(keywordIndex, pageIndex);
@@ -60,7 +62,7 @@ var configs = {
           attachedUrl: itemUrlPrefix + '{id}',
           selectorType: SelectorType.XPath,
           type: 'json',
-          selector: "//body//script[contains(., '__INITIAL_SSR_STATE__')]"
+          selector: "//body//script[contains(., '__INITIAL_SSR_STATE__=')]"
         },
         {
           name: "title",
@@ -87,6 +89,14 @@ var configs = {
           type: 'int',
           selectorType: SelectorType.JsonPath
         },
+        {
+          name: "goods",
+          alias: "商品",
+          // sourceType: SourceType.AttachedUrl,
+          // attachedUrl: goodsUrlPrefix + '{id}',
+          selectorType: SelectorType.XPath,
+          selector: "//body//script[contains(., 'Main')]"
+        }
         /*{
           name: "cover",
           alias: '封面图',
@@ -174,33 +184,48 @@ var configs = {
   afterExtractField: function (fieldName, data, page, site, index) {
     // console.log(fieldName);
     
-    /*if (fieldName === 'data.id') {
-      // 根据内容id把内容详情页添加到待爬队列
-      console.log(data);
-      site.addUrl(itemUrlPrefix + data);
-    }*/
-    
     if (fieldName === 'data.state') {
       if (!data) return null;
-      // console.log(typeof data);
-      // console.log(data);
-      
       var state = JSON.parse(data
         .replace(/window\.__INITIAL_SSR_STATE__=\{"NoteView":(.*)\}/, "$1")
         .replace(/\n/g, "\\\\n")
         .replace(/\r/g, "\\\\r")
       );
       
-      console.log(typeof state);
+      try {
+        var hashTags = state.content.hashTags;
+      } catch (err) {
+        console.log(err);
+      }
       
-      console.log(Object.keys(state));
-      
+      if (hashTags && hashTags.length > 0) {
+        
+        var goodsTags = hashTags.filter(function (tag) {
+          return tag.type === "goods";
+        });
+        console.log(goodsTags);
+        
+        goodsTags.length > 0 && goodsTags.forEach(function (tag) {
+          var goodsLink = decodeURIComponent(tag.link);
+          if (goodsRegex.test(goodsLink)) {
+            console.log('add goods link to content page: ' + goodsLink);
+            site.addUrl(goodsLink);
+          }
+        })
+      }
       return state;
-      
     }
     
     return data;
-  }
+  },
+  
+  /*isAntiSpider: function (url, content, page) {
+    // 如果笔记详情页没有"__INITIAL_SSR_STATE__"，则重新请求该页面
+    if (itemRegex.test(url) && page.raw && page.raw.indexOf("__INITIAL_SSR_STATE__") < 0) {
+      return true;
+    }
+  }*/
+  
 };
 
 var crawler = new Crawler(configs);
