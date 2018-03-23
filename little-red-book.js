@@ -20,6 +20,11 @@ var keywordUrlPrefix = "http://www.xiaohongshu.com/web_api/sns/v2/search/note?ke
 var itemUrlPrefix = "http://www.xiaohongshu.com/discovery/item/";
 var goodsUrlPrefix = "https://pages.xiaohongshu.com/goods/";
 
+var searchRegex = /http:\/\/www\.xiaohongshu\.com\/web_api\/sns\/v2\/search\/note\?keyword=(.*)+&page=(\d){1,2}/;
+var itemRegex = /http:\/\/www\.xiaohongshu\.com\/discovery\/item\/.*/;
+var goodsRegex = /http:\/\/pages\.xiaohongshu\.com\/goods\/.*/;
+
+
 var urlWithKeyword = getUrlWithKeywordIndex(keywordIndex, pageIndex);
 
 function getUrlWithKeywordIndex(keywordIndex, pageIndex) {
@@ -31,11 +36,8 @@ var configs = {
   domains: ["www.xiaohongshu.com"],
   timeout: 10 * 1000,
   scanUrls: [urlWithKeyword],
-  contentUrlRegexes: [
-    /http:\/\/www\.xiaohongshu\.com\/web_api\/sns\/v2\/search\/note\?keyword=(.*)+&page=(\d){1,2}/,
-    /http:\/\/www\.xiaohongshu\.com\/discovery\/item\/.*/,
-    /http:\/\/pages\.xiaohongshu\.com\/goods\/.*/
-  ],
+  // enableJS: true,
+  contentUrlRegexes: [searchRegex, itemRegex, goodsRegex],
   helperUrlRegexes: [],
   fields: [
     {
@@ -46,10 +48,19 @@ var configs = {
       children: [
         {
           name: "id",
-          alias: '内容id',
+          alias: '笔记id',
           selector: "$.id",
           selectorType: SelectorType.JsonPath,
-          primaryKey: true
+          primaryKey: true,
+        },
+        {
+          name: "state",
+          alias: '笔记state',
+          sourceType: SourceType.AttachedUrl,
+          attachedUrl: itemUrlPrefix + '{id}',
+          selectorType: SelectorType.XPath,
+          type: 'json',
+          selector: "//body//script[contains(., '__INITIAL_SSR_STATE__')]"
         },
         {
           name: "title",
@@ -63,12 +74,12 @@ var configs = {
           selector: "$.desc",
           selectorType: SelectorType.JsonPath
         },
-        {
+        /*{
           name: "type",
           alias: '内容类型',
           selector: "$.type",
           selectorType: SelectorType.JsonPath
-        },
+        },*/
         {
           name: "likes",
           alias: '点赞数',
@@ -76,57 +87,14 @@ var configs = {
           type: 'int',
           selectorType: SelectorType.JsonPath
         },
-        {
+        /*{
           name: "cover",
           alias: '封面图',
           selector: "$.cover.url",
           type: 'image',
           selectorType: SelectorType.JsonPath
-        },
-        /*{
-          name: "tags",
-          alias: '标签id',
-          selector: "$.tags",
-          selectorType: SelectorType.JsonPath,
-          repeated: true,
         },*/
-        {
-          name: "tag-topic",
-          alias: '话题标签',
-          selectorType: SelectorType.XPath,
-          repeated: true,
-          sourceType: SourceType.AttachedUrl,
-          attachedUrl: "http://www.xiaohongshu.com/discovery/item/{id}",
-          selector: "//a[contains(@class,'topic') and contains(@class ,'hash-tag')]/text()"
-        },
-        {
-          name: "tag-goods",
-          alias: '商品标签',
-          selectorType: SelectorType.XPath,
-          repeated: true,
-          sourceType: SourceType.AttachedUrl,
-          attachedUrl: itemUrlPrefix + "{id}",
-          selector: "//a[contains(@class,'goods') and contains(@class ,'hash-tag')]/text()"
-        },
-        {
-          name: 'goods-id',
-          alias: '商品id',
-          sourceType: SourceType.AttachedUrl,
-          attachedUrl: itemUrlPrefix + "{id}",
-          selectorType: SelectorType.XPath,
-          repeated: true,
-          selector: "//a[contains(@class,'goods') and contains(@class ,'hash-tag')]/attribute::owl",
-        },
-        {
-          name: 'goods-name',
-          alias: '商品名称',
-          selectorType: SelectorType.XPath,
-          sourceType: SourceType.AttachedUrl,
-          attachedUrl: goodsUrlPrefix,
-          repeated: true,
-          selector: "//h1[contains(@owl, 'detail_name')]/text()"
-        },
-        {
+        /*{
           name: "user",
           alias: '用户',
           selector: "$.user",
@@ -159,7 +127,8 @@ var configs = {
               selectorType: SelectorType.JsonPath
             }
           ]
-        }
+        },*/
+      
       ]
     }
   ],
@@ -170,30 +139,32 @@ var configs = {
     return false;
   },
   onProcessContentPage: function (page, content, site) {
-    var data = JSON.parse(content);
-    if (data.data.length < 1) {
-      // 已完成该页面爬取
-      var currentKeyword = page.url.replace(/.*keyword=(.*)&page=.*/, '$1');
-      console.log('done with keyword: ' + decodeURIComponent(currentKeyword));
-      if (++keywordIndex < numKeyWords) {
-        // 爬取下一个关键词
-        var newUrl = getUrlWithKeywordIndex(keywordIndex, pageIndex);
-        site.addUrl(newUrl);
+    var url = page.url;
+    if (searchRegex.test(url)) {
+      console.log('matched: ' + url);
+      var data = JSON.parse(content);
+      if (data.data.length < 1) {
+        // 已完成该页面爬取
+        var currentKeyword = url.replace(/.*keyword=(.*)&page=.*/, '$1');
+        console.log('done with keyword: ' + decodeURIComponent(currentKeyword));
+        if (++keywordIndex < numKeyWords) {
+          // 爬取下一个关键词
+          var newUrl = getUrlWithKeywordIndex(keywordIndex, pageIndex);
+          site.addUrl(newUrl);
+        } else {
+          // 已完成所有关键词的爬取
+          console.log('done with all keywords');
+          return false;
+        }
       } else {
-        // 已完成所有关键词的爬取
-        console.log('done with all keywords');
-        return false;
+        // 继续爬取当前关键词的下一页结果
+        // console.log('continue to crawl next page');
+        var pageNumber = url.replace(/.*&page=(\d)/, '$1');
+        pageNumber++;
+        var nextUrl = url.replace(/(.*)&page=.*/, '$1&page=' + pageNumber);
+        site.addUrl(nextUrl);
       }
-    } else {
-      // 继续爬取当前关键词的下一页结果
-      console.log('continue to crawl next page');
-      var url = page.url;
-      var pageNumber = url.replace(/.*&page=(\d)/, '$1');
-      pageNumber++;
-      var nextUrl = url.replace(/(.*)&page=.*/, '$1&page=' + pageNumber);
-      site.addUrl(nextUrl);
     }
-    
     return false;
   },
   afterExtractPage: function (page, data, site) {
@@ -201,18 +172,33 @@ var configs = {
     return data;
   },
   afterExtractField: function (fieldName, data, page, site, index) {
-    /*if (fieldName === 'data.tags') {
-      return data.map(function(datum) {
-        return datum.replace(/.*\.(.*)/, '$1');
-      })
+    // console.log(fieldName);
+    
+    /*if (fieldName === 'data.id') {
+      // 根据内容id把内容详情页添加到待爬队列
+      console.log(data);
+      site.addUrl(itemUrlPrefix + data);
     }*/
-    if (fieldName === 'data.goods-id') {
-      data = data.map(function (datum) {
-        var goodsId = datum.replace(/.*\/(.*)/, '$1');
-        site.addUrl(goodsUrlPrefix + goodsId);
-        return goodsId;
-      });
+    
+    if (fieldName === 'data.state') {
+      if (!data) return null;
+      // console.log(typeof data);
+      // console.log(data);
+      
+      var state = JSON.parse(data
+        .replace(/window\.__INITIAL_SSR_STATE__=\{"NoteView":(.*)\}/, "$1")
+        .replace(/\n/g, "\\\\n")
+        .replace(/\r/g, "\\\\r")
+      );
+      
+      console.log(typeof state);
+      
+      console.log(Object.keys(state));
+      
+      return state;
+      
     }
+    
     return data;
   }
 };
