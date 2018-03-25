@@ -22,8 +22,8 @@ var keywordUrlPrefix = "http://www.xiaohongshu.com/web_api/sns/v2/search/note?ke
 var itemUrlPrefix = "http://www.xiaohongshu.com/discovery/item/";
 var goodsUrlPrefix = "https://pages.xiaohongshu.com/goods/";
 
-var searchRegex = /http:\/\/www\.xiaohongshu\.com\/web_api\/sns\/v2\/search\/note\?keyword=(.*)+&page=(\d){1,2}/;
-var itemRegex = /http:\/\/www\.xiaohongshu\.com\/discovery\/item\/.*/;
+var searchRegex = /http(s)?:\/\/www\.xiaohongshu\.com\/web_api\/sns\/v2\/search\/note\?keyword=(.*)+&page=(\d){1,2}/;
+var itemRegex = /http(s)?:\/\/www\.xiaohongshu\.com\/discovery\/item\/.*/;
 var goodsRegex = /http(s)?:\/\/pages\.xiaohongshu\.com\/goods\/.*/;
 
 
@@ -35,12 +35,13 @@ function getUrlWithKeywordIndex(keywordIndex, pageIndex) {
 
 var configs = {
   userAgent: UserAgent.Mobile,
-  domains: ["www.xiaohongshu.com"],
+  domains: ["xiaohongshu.com"],
   timeout: 10 * 1000,
   scanUrls: [urlWithKeyword],
-  // enableJS: true,
+  enableJS: true,
   contentUrlRegexes: [searchRegex, itemRegex, goodsRegex],
   helperUrlRegexes: [],
+  autoFindUrls: false,
   fields: [
     {
       name: "data",
@@ -61,7 +62,7 @@ var configs = {
           sourceType: SourceType.AttachedUrl,
           attachedUrl: itemUrlPrefix + '{id}',
           selectorType: SelectorType.XPath,
-          type: 'json',
+          // type: 'json',
           selector: "//body//script[contains(., '__INITIAL_SSR_STATE__=')]"
         },
         {
@@ -89,57 +90,15 @@ var configs = {
           type: 'int',
           selectorType: SelectorType.JsonPath
         },
-        {
-          name: "goods",
-          alias: "商品",
-          // sourceType: SourceType.AttachedUrl,
-          // attachedUrl: goodsUrlPrefix + '{id}',
-          selectorType: SelectorType.XPath,
-          selector: "//body//script[contains(., 'Main')]"
-        }
-        /*{
-          name: "cover",
-          alias: '封面图',
-          selector: "$.cover.url",
-          type: 'image',
-          selectorType: SelectorType.JsonPath
-        },*/
-        /*{
-          name: "user",
-          alias: '用户',
-          selector: "$.user",
-          selectorType: SelectorType.JsonPath,
-          children: [
-            {
-              name: "userid",
-              alias: '用户id',
-              selector: "$.id",
-              selectorType: SelectorType.JsonPath,
-              primaryKey: true
-            },
-            {
-              name: "nickname",
-              alias: '用户昵称',
-              selector: "$.nickname",
-              selectorType: SelectorType.JsonPath
-            },
-            {
-              name: "avatar",
-              alias: '用户头像',
-              selector: "$.image",
-              selectorType: SelectorType.JsonPath
-            },
-            {
-              name: "verified",
-              alias: '认证用户',
-              selector: "$.official_verified",
-              type: 'bool',
-              selectorType: SelectorType.JsonPath
-            }
-          ]
-        },*/
-      
       ]
+    },
+    {
+      name: "goods",
+      alias: "商品state",
+      sourceType: SourceType.AttachedUrl,
+      // attachedUrl: goodsUrlPrefix + '{id}',
+      selectorType: SelectorType.XPath,
+      selector: "//body//script[contains(., 'Main')]"
     }
   ],
   onProcessScanPage: function (page, content, site) {
@@ -150,6 +109,14 @@ var configs = {
   },
   onProcessContentPage: function (page, content, site) {
     var url = page.url;
+    console.log('on process content page: ' + url);
+    
+    if (goodsRegex.test(url)) {
+      // site.addUrl(url);
+      // console.log(page.raw.replace(/.*("Main":{.*)<\/script>/, "$1"));
+      // console.log('on process content page of goods: ' + url);
+    }
+    
     if (searchRegex.test(url)) {
       console.log('matched: ' + url);
       var data = JSON.parse(content);
@@ -177,6 +144,12 @@ var configs = {
     }
     return false;
   },
+  
+  afterDownloadAttachedPage: function (page, site) {
+    console.log('after download attached page: ' + page.url);
+    
+  },
+  
   afterExtractPage: function (page, data, site) {
     // console.log(data);
     return data;
@@ -203,17 +176,26 @@ var configs = {
         var goodsTags = hashTags.filter(function (tag) {
           return tag.type === "goods";
         });
-        console.log(goodsTags);
         
         goodsTags.length > 0 && goodsTags.forEach(function (tag) {
           var goodsLink = decodeURIComponent(tag.link);
           if (goodsRegex.test(goodsLink)) {
             console.log('add goods link to content page: ' + goodsLink);
+            
             site.addUrl(goodsLink);
           }
         })
       }
       return state;
+    }
+    
+    if (fieldName === 'data.goods' && data) {
+      console.log('goods field data: ' + data);
+      return JSON.parse(data
+        .replace(/window\.__INITIAL_SSR_STATE__=\{"Main":(.*)\}/, "$1")
+        .replace(/\n/g, "\\\\n")
+        .replace(/\r/g, "\\\\r")
+      );
     }
     
     return data;
