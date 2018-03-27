@@ -47,50 +47,16 @@ var configs = {
       name: "data",
       selector: "$.data",
       selectorType: SelectorType.JsonPath,
-      repeated: true,
-      children: [
-        {
-          name: "id",
-          alias: '笔记id',
-          selector: "$.id",
-          selectorType: SelectorType.JsonPath,
-          primaryKey: true,
-        },
-        {
-          name: "state",
-          alias: '笔记state',
-          sourceType: SourceType.AttachedUrl,
-          attachedUrl: itemUrlPrefix + '{id}',
-          selectorType: SelectorType.XPath,
-          // type: 'json',
-          selector: "//body//script[contains(., '__INITIAL_SSR_STATE__=')]"
-        },
-        {
-          name: "title",
-          alias: '标题',
-          selector: "$.title",
-          selectorType: SelectorType.JsonPath
-        },
-        {
-          name: "text",
-          alias: '内容',
-          selector: "$.desc",
-          selectorType: SelectorType.JsonPath
-        },
-        /*{
-          name: "type",
-          alias: '内容类型',
-          selector: "$.type",
-          selectorType: SelectorType.JsonPath
-        },*/
-        {
-          name: "likes",
-          alias: '点赞数',
-          selector: "$.likes",
-          type: 'int',
-          selectorType: SelectorType.JsonPath
-        },
-      ]
+      // repeated: true,
+      transient: true
+    },
+    {
+      name: "note",
+      alias: '笔记state',
+      sourceType: SourceType.AttachedUrl,
+      // attachedUrl: itemUrlPrefix + '{id}',
+      selectorType: SelectorType.XPath,
+      selector: "//body//script[contains(., 'NoteView')]"
     },
     {
       name: "goods",
@@ -157,41 +123,50 @@ var configs = {
   afterExtractField: function (fieldName, data, page, site, index) {
     // console.log(fieldName);
     
-    if (fieldName === 'data.state') {
+    if (fieldName === 'data' && data) {
+      console.log('type of "data" field is: ' + typeof data);
+      console.log(data);
+      data = JSON.parse(data);  // data here is string
+      /*data.forEach(function (datum) {
+        site.addUrl(itemUrlPrefix + datum.id)
+      })*/
+      site.addUrl(itemUrlPrefix + data.id);
+    }
+    
+    if (fieldName === 'note') {
       if (!data) return null;
+      console.log('type of "note" field is: ' + typeof data);
       var state = JSON.parse(data
         .replace(/window\.__INITIAL_SSR_STATE__=\{"NoteView":(.*)\}/, "$1")
         .replace(/\n/g, "\\\\n")
         .replace(/\r/g, "\\\\r")
       );
-      
+      var hashTags;
       try {
-        var hashTags = state.content.hashTags;
+        hashTags = state.content.hashTags;
       } catch (err) {
         console.log(err);
       }
-      
       if (hashTags && hashTags.length > 0) {
-        
         var goodsTags = hashTags.filter(function (tag) {
           return tag.type === "goods";
         });
-        
-        goodsTags.length > 0 && goodsTags.forEach(function (tag) {
-          var goodsLink = decodeURIComponent(tag.link);
-          if (goodsRegex.test(goodsLink)) {
-            console.log('add goods link to content page: ' + goodsLink);
-            
-            site.addUrl(goodsLink);
-          }
-        })
+        if (goodsTags.length > 0) {
+          goodsTags.forEach(function (tag) {
+            var goodsLink = decodeURIComponent(tag.link);
+            if (goodsRegex.test(goodsLink)) {
+              console.log('add goods link to content page: ' + goodsLink);
+              site.addUrl(goodsLink);
+            }
+          })
+        }
       }
       return state;
     }
     
-    if (fieldName === 'data.goods' && data) {
+    if (fieldName === 'goods' && data) {
       console.log('goods field data: ' + data);
-      return JSON.parse(data
+      data = JSON.parse(data
         .replace(/window\.__INITIAL_SSR_STATE__=\{"Main":(.*)\}/, "$1")
         .replace(/\n/g, "\\\\n")
         .replace(/\r/g, "\\\\r")
@@ -199,7 +174,7 @@ var configs = {
     }
     
     return data;
-  },
+  }
   
   /*isAntiSpider: function (url, content, page) {
     // 如果笔记详情页没有"__INITIAL_SSR_STATE__"，则重新请求该页面
