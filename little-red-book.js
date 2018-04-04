@@ -121,15 +121,11 @@ var configs = {
     return data;
   },
   afterExtractField: function (fieldName, data, page, site, index) {
-    // console.log(fieldName);
     
     if (fieldName === 'data' && data) {
       console.log('type of "data" field is: ' + typeof data);
       console.log(data);
       data = JSON.parse(data);  // data here is string
-      /*data.forEach(function (datum) {
-        site.addUrl(itemUrlPrefix + datum.id)
-      })*/
       site.addUrl(itemUrlPrefix + data.id);
     }
     
@@ -174,14 +170,28 @@ var configs = {
     }
     
     return data;
-  }
+  },
   
-  /*isAntiSpider: function (url, content, page) {
-    // 如果笔记详情页没有"__INITIAL_SSR_STATE__"，则重新请求该页面
-    if (itemRegex.test(url) && page.raw && page.raw.indexOf("__INITIAL_SSR_STATE__") < 0) {
+  isAntiSpider: function (url, content, page) {
+    
+    
+    var isListPage = searchRegex.test(url);
+    if (isListPage) {
+      try {
+        var json = JSON.parse(content);
+      } catch(err) {
+        console.log(content);
+        console.log('JOSN.parse failed, use Anti-Spider');
+        return true;
+      }
+    }
+    
+    // 如果笔记详情页、商品详情页没有"__INITIAL_SSR_STATE__"，则重新请求该页面
+    var isDetailPage = itemRegex.test(url) || goodsRegex.test(url);
+    if (isDetailPage && page.raw && page.raw.indexOf("__INITIAL_SSR_STATE__") < 0) {
       return true;
     }
-  }*/
+  }
   
 };
 
