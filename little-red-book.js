@@ -13,7 +13,7 @@ var keywords = [
 ];
 
 var numKeyWords = keywords.length;
-var keywordIndex = 0;
+// var keywordIndex = 0;
 
 // 神箭手不建议在爬虫代码中使用全局变量。因为每个爬虫节点都会单独使用定义的全局变量，容易出现冲突
 var pageIndex = 1; // 正式爬取时从1开始，测试阶段使用较大数字
@@ -27,7 +27,12 @@ var itemRegex = /http(s)?:\/\/www\.xiaohongshu\.com\/discovery\/item\/.*/;
 var goodsRegex = /http(s)?:\/\/pages\.xiaohongshu\.com\/goods\/.*/;
 
 
-var urlWithKeyword = getUrlWithKeywordIndex(keywordIndex, pageIndex);
+// var urlWithKeyword = getUrlWithKeywordIndex(keywordIndex, pageIndex);
+
+var scanUrlsArray = [];
+for (var i = 0; i < numKeyWords; i++) {
+  scanUrlsArray.push(getUrlWithKeywordIndex(i, pageIndex));
+}
 
 function getUrlWithKeywordIndex(keywordIndex, pageIndex) {
   return keywordUrlPrefix + encodeURIComponent(keywords[keywordIndex]) + "&page=" + pageIndex;
@@ -37,7 +42,7 @@ var configs = {
   userAgent: UserAgent.Mobile,
   domains: ["xiaohongshu.com"],
   timeout: 10 * 1000,
-  scanUrls: [urlWithKeyword],
+  scanUrls: scanUrlsArray,
   enableJS: true,
   contentUrlRegexes: [searchRegex, itemRegex, goodsRegex],
   helperUrlRegexes: [],
@@ -90,7 +95,7 @@ var configs = {
         // 已完成该页面爬取
         var currentKeyword = url.replace(/.*keyword=(.*)&page=.*/, '$1');
         console.log('done with keyword: ' + decodeURIComponent(currentKeyword));
-        if (++keywordIndex < numKeyWords) {
+        /*if (++keywordIndex < numKeyWords) {
           // 爬取下一个关键词
           var newUrl = getUrlWithKeywordIndex(keywordIndex, pageIndex);
           site.addUrl(newUrl);
@@ -98,7 +103,7 @@ var configs = {
           // 已完成所有关键词的爬取
           console.log('done with all keywords');
           return false;
-        }
+        }*/
       } else {
         // 继续爬取当前关键词的下一页结果
         // console.log('continue to crawl next page');
@@ -179,7 +184,7 @@ var configs = {
     if (isListPage) {
       try {
         var json = JSON.parse(content);
-      } catch(err) {
+      } catch (err) {
         console.log(content);
         console.log('JOSN.parse failed, use Anti-Spider');
         return true;
