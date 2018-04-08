@@ -30,7 +30,7 @@ var goodsRegex = /http(s)?:\/\/pages\.xiaohongshu\.com\/goods\/.*/;
 // var urlWithKeyword = getUrlWithKeywordIndex(keywordIndex, pageIndex);
 
 var scanUrlsArray = [];
-for (var i = 0; i < numKeyWords; i++) {
+for (var i = numKeyWords - 1; i > 0; i--) {
   scanUrlsArray.push(getUrlWithKeywordIndex(i, pageIndex));
 }
 
