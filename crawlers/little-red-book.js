@@ -136,7 +136,7 @@ var configs = {
     
     if (fieldName === 'note') {
       if (!data) return null;
-      console.log('type of "note" field is: ' + typeof data);
+      // console.log('type of "note" field is: ' + typeof data);
       var state = JSON.parse(data
         .replace(/window\.__INITIAL_SSR_STATE__=\{"NoteView":(.*)\}/, "$1")
         .replace(/\n/g, "\\\\n")

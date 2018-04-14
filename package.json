@@ -1,0 +1,19 @@
+{
+  "name": "weibocrawler",
+  "version": "1.0.0",
+  "description": "神箭手平台-微博、小红书爬虫 ===",
+  "main": "index.js",
+  "scripts": {
+    "sep": "node scripts/separate-tables.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TapasTech/ArcherKeywordCrawler.git"
+  },
+  "author": "Kou-Guandong",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/TapasTech/ArcherKeywordCrawler/issues"
+  },
+  "homepage": "https://github.com/TapasTech/ArcherKeywordCrawler#readme"
+}
